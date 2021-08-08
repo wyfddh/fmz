@@ -895,6 +895,19 @@ function updateProfit(ex) {
   }
 }
 
+//分组
+function groupBy(array, f) {
+  let groups = {};
+  array.forEach( function( o ) {
+      let group = JSON.stringify( f(o) );
+      groups[group] = groups[group] || [];
+      groups[group].push( o );
+  });
+  return Object.keys(groups).map( function( group ) {
+      return groups[group];
+  });
+}
+
 //更新表格
 function updateTable() {
   var nowTime = _D();
@@ -976,17 +989,24 @@ function updateTable() {
   };
   if (!IS_HUICHE) {
     var vet = getDetailLog(LIMIT, OFFSET, ORDER_STATUS, BOND_VALUE, COIN_VALUE);
-    var values = vet.values;
-    var countDetail = countDetailLog();
-    //币种，方向，起始时间，结束时间，起始下单价格，最终下单价格，持仓均价，成交时标记价格，波动率，仓位保证金，收益
-    var table3 = {
-      type: 'table',
-      title: '详细成交信息，共(' + countDetail + ')条',
-      cols: ['币种', '方向', '起始下单时间', '最终下单时间', '起始下单价格', '最终下单价格', '持仓均价', '成交时标记价格',
-        '最大浮亏', '波动率%', '仓位保证金', '收益'],
-      rows: values
-    };
-    LogStatus('`' + JSON.stringify([table1, table2, table3]) + '`');
+    let coinArry = groupBy(vet.values, function(item){
+      return [item[0]];
+    });
+
+    let tables = [];
+    coinArry.forEach( function( coin ) {
+      let count = coin.length;
+      let table = {
+        type: 'table',
+        title: coin[0][0] + '_详细成交信息，共(' + count + ')条',
+        cols: ['币种', '方向', '起始下单时间', '最终下单时间', '起始下单价格', '最终下单价格', '持仓均价', '成交时标记价格',
+          '最大浮亏', '波动率%', '仓位保证金', '收益'],
+        rows: coin
+      };
+      tables.push(table);
+    });
+
+    LogStatus('`' + JSON.stringify([table1, table2]) + '`\n' + '`' + JSON.stringify(tables) + '`');
     return;
   }
   LogStatus('`' + JSON.stringify([table1, table2]) + '`')
