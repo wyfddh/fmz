@@ -1476,7 +1476,6 @@ function usdtTransfer(cur, amount, type) {
 
 //贪心算法
 function greedy(type, ex,quantity) {
-  let start = new Date().getTime();
   var coin = ex.GetCurrency();
   updateProfit(ex);
   if (type == PD_LONG) {
@@ -1583,8 +1582,6 @@ function greedy(type, ex,quantity) {
       }
     }
   }
-  let end = new Date().getTime();
-  Log(coin+"执行greedy方法耗时"+(end - start)+"ms");
 }
 
 function manyBuy(many_quantity, ex) {
