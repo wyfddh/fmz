@@ -1172,7 +1172,6 @@ function checkPos(posDirection, ex) {
 
 //判断价差，
 function checkPriceDifference(posDirection, ex,quantity) {
-  let start = new Date().getTime();
   var coin = ex.GetCurrency();
   var q = quantity;
   var ticker = _C(ex.GetTicker);
@@ -1284,8 +1283,6 @@ function checkPriceDifference(posDirection, ex,quantity) {
       }
     }
   }
-  let end = new Date().getTime();
-  Log(coin+"执行checkPriceDifference方法耗时"+(end - start)+"ms");
   return q;
 }
 
