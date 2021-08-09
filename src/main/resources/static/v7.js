@@ -223,6 +223,7 @@ var LOCK_POS_STATUS = false;
 
 function getPos(ex) {
   if (IS_OPEN_SIMULATED_FUNDS) {
+    updatePos(ex);
     var coin = ex.GetCurrency();
     return _G(coin + "pos");
   } else {
@@ -384,17 +385,19 @@ function deletePartPos(type, amount, price, ex) {
 function updatePos(ex) {
   var coin = ex.GetCurrency();
   var pos = _G(coin + "pos");
-  var ticker = _C(ex.GetTicker);
-  for (var i = 0; i < pos.length; i++) {
-    if (pos[i].Type == PD_LONG) {
-      pos[i].Profit = pos[i].Margin * ((ticker.Last - pos[i].Price)
-          / pos[i].Price) * MARGIN_LEVEL;
-    } else {
-      pos[i].Profit = pos[i].Margin * ((pos[i].Price - ticker.Last)
-          / pos[i].Price) * MARGIN_LEVEL;
+  if (pos && pos.length > 0) {
+    var ticker = _C(ex.GetTicker);
+
+    for (var i = 0; i < pos.length; i++) {
+      if (pos[i].Type == PD_LONG) {
+        pos[i].Profit = pos[i].Margin * ((ticker.Last - pos[i].Price) / pos[i].Price) * MARGIN_LEVEL;
+      } else {
+        pos[i].Profit = pos[i].Margin * ((pos[i].Price - ticker.Last) / pos[i].Price) * MARGIN_LEVEL;
+      }
     }
+    _G(coin + "pos", pos);
   }
-  _G(coin + "pos", pos);
+
 }
 
 //获取k线交叉
@@ -409,20 +412,26 @@ function getCross(ex) {
 
   //0处于刚突破未稳定状态，1上涨，2下跌
   var status = _G(coin + "crossStatus");
-
+  //如果近2根k线柱子与趋势相反，或者一正一反，则判断此时为震荡状态
+  var r1 = r[r.length-1];
+  var r2 = r[r.length-2];
   var n = _Cross(emaChart1, emaChart2);
   if (n > 0) {
     //正在上涨
     //观察周期
     if (n - MANY_PERIOD >= 0) {
-      status = 1;
+      if (r1.Close > r1.Open && r2.Close > r2.Open) {
+        status = 1;
+      }
     } else {
       status = 0;
     }
   } else if (n < 0) {
     //正在下跌
     if (Math.abs(n) - SHORT_PERIOD >= 0) {
-      status = 2;
+      if (r1.Close < r1.Open && r2.Close < r2.Open) {
+        status = 2;
+      }
     } else {
       status = 0;
     }
@@ -430,7 +439,6 @@ function getCross(ex) {
   } else {
     status = 0;
   }
-
   _G(coin + "crossStatus", status);
 }
 
@@ -779,9 +787,26 @@ function getTotalEquity_Binance() {
 }
 
 function getHuicheEquity() {
-  var ret = exchanges[0].GetAccount();
-  // Log(ret);
-  return ret.Balance;
+  var p = 0;
+  //获取余额
+  // var ret = exchanges[0].GetAccount();
+  // var p1 = 0;
+  //获取持仓中保证金
+  var ps = 0;
+  for (var i = 0;i < exchanges.length;i++) {
+    var ret = exchanges[i].GetAccount();
+    var p = ret.Balance;
+    var pos = getPos(exchanges[i]);
+    var b = 0;
+    if (pos && pos.length > 0) {
+      for (var j = 0; j < pos.length;j++) {
+        b += pos[j].Margin;
+      }
+    }
+    ps += b + p;
+  }
+  // Log(ps);
+  return ps;
 }
 
 function getTotalEquity() {
@@ -844,9 +869,6 @@ function cancelAll(ex) {
 //更新浮动赢亏
 function updateProfit(ex) {
   var coin = ex.GetCurrency();
-  if (IS_OPEN_SIMULATED_FUNDS) {
-    updatePos(ex);
-  }
   var pos = getPos(ex);
   if (!pos || pos.length == 0) {
     _G(coin + "manyProfit", 0);
@@ -1176,8 +1198,11 @@ function checkPriceDifference(posDirection, ex,quantity) {
   var q = quantity;
   var ticker = _C(ex.GetTicker);
   updateProfit(ex);
-  //自适应补仓，在该币种当前仓位保证金大于每次补仓金额*50时，每次补仓降低浮亏为差的浮亏/2
+  //自适应补仓，在该币种当前仓位保证金大于每次补仓金额*50时，
+  //例：1000初始，补仓比例为0.0005，每次补仓金额为0.5，当保证金大于25时，触发自适应高级补仓
+  // 每次补仓降低浮亏/2
   var b = 0;
+  //复利
   if  (COMPOUND_INTEREST) {
     b = CURR_TOTAL_EQ * INIT_BUY_PROPORTION * 50;
   } else {
