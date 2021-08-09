@@ -908,6 +908,52 @@ function groupBy(array, f) {
   });
 }
 
+function initLimit(totalEq){
+	const initEq = totalEq;
+	if(initEq > 1000){
+		totalEq = 1000;
+	}
+	const limit1 = totalEq * 0.025;
+	const limit2 = totalEq * 0.05;
+	const limit3 = totalEq * 0.1;
+	const limit4 = totalEq * 0.2;
+	const limit5 = totalEq * 0.4;
+	let limit = {
+		limit1:limit1,
+		limit2:limit2,
+		limit3:limit3,
+		limit4:limit4,
+		limit5:limit5
+	}
+	return limit;
+}
+
+function countEachCoin(coinRows, limit) {
+	let countArray = [coinRows[0][0], 0, 0, 0, 0 ,0, 0, 0, 0, 0 ,0, 0];
+    coinRows.forEach(function( coin ) {
+        let bond = _N(coin[10], 2);
+        let profit =  _N(coin[11], 2);
+        countArray[11] = countArray[11] + profit;
+        if(bond > 0 && bond <= limit.limit1){
+            countArray[1] = countArray[1] + 1;
+            countArray[2] = countArray[2] + profit;
+        } else if(bond > limit.limit1 && bond <= limit.limit2){
+            countArray[3] = countArray[3] + 1;
+            countArray[4] = countArray[4] + profit;
+        }else if(bond > limit.limit2 && bond <= limit.limit3){
+            countArray[5] = countArray[5] + 1;
+            countArray[6] = countArray[6] + profit;
+        }else if(bond > limit.limit3 && bond <= limit.limit4){
+            countArray[7] = countArray[7] + 1;
+            countArray[8] = countArray[8] + profit;
+        }else if(bond > limit.limit4 && bond <= limit.limit5){
+            countArray[9] = countArray[9] + 1;
+            countArray[10] = countArray[10] + profit;
+        }
+    });
+	return countArray;
+}
+
 //更新表格
 function updateTable() {
   var nowTime = _D();
@@ -993,7 +1039,10 @@ function updateTable() {
       return [item[0]];
     });
 
+    let limit = initLimit(_N(initEq, 2));
+
     let tables = [];
+    let table3Arr = [];
     coinArry.forEach( function( coin ) {
       let count = coin.length;
       let table = {
@@ -1004,9 +1053,33 @@ function updateTable() {
         rows: coin
       };
       tables.push(table);
+
+      let countArr = countEachCoin(coin, limit);
+	  table3Arr.push(countArr);
     });
 
-    LogStatus('`' + JSON.stringify([table1, table2]) + '`\n' + '`' + JSON.stringify(tables) + '`');
+    const region0 = '(0,' + limit.limit1+'](出现次数|总收益)';
+    const region1 = '('+limit.limit1 + ',' + limit.limit2+'](出现次数|总收益)';
+    const region2 = '('+limit.limit2 + ',' + limit.limit3+'](出现次数|总收益)';
+    const region3 = '('+limit.limit3 + ',' + limit.limit4+'](出现次数|总收益)';
+    const region4 = '('+limit.limit4 + ',' + limit.limit5+'](出现次数|总收益)';
+
+    let regionArr = [];
+    table3Arr.forEach( function( table3Row ) {
+      let region = [table3Row[0], _N(table3Row[11], 2), table3Row[1] + '|' + _N(table3Row[2], 2),
+       table3Row[3] + '|' + _N(table3Row[4], 2), table3Row[5] + '|' + _N(table3Row[6], 2),
+       table3Row[7] + '|' + _N(table3Row[8], 2), table3Row[9] + '|' + _N(table3Row[10], 2)];
+      regionArr.push(region);
+    });
+
+    var table3 = {
+      type: 'table',
+      title: '交易保证金区间',
+      cols: ['币种', '总收益', region0, region1, region2, region3, region4],
+      rows: regionArr
+    };
+    
+    LogStatus('`' + JSON.stringify([table1, table2, table3]) + '`\n' + '`' + JSON.stringify(tables) + '`');
     return;
   }
   LogStatus('`' + JSON.stringify([table1, table2]) + '`')
